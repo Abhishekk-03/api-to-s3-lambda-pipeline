@@ -39,7 +39,7 @@ def lambda_handler(event, context):
         "data": api_data
     }
 
-    # 4. Create a unique S3 object key
+    # 4. Create a unique S3 object key 
     s3_key = (
         f"raw/users/ingestion_date={now:%Y-%m-%d}/"
         f"run_{run_id}.json"
