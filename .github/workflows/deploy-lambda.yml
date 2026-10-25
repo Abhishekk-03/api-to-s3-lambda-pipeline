@@ -7,87 +7,34 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
-
   installation:
-    name: Test Lambda Code
-    runs-on: ubuntu-latest
-
-    steps:
-      # Checkout current code
-      - name: Get Code
-        uses: actions/checkout@v4
-
-      # Install Python
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      # Install dependencies and testing library
-      - name: Install Libraries
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
-
-      # Run test cases
-      # - name: Run Test Cases
-      #   run: python -m pytest
-
-  deploying:
     name: Deploy to AWS Lambda
-    needs: installation
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout current code
       - name: Get Code
         uses: actions/checkout@v4
 
-      # Configure Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # Install dependencies and package Lambda
-      - name: Package Lambda
-        run: |
-          mkdir package
-          pip install -r requirements.txt -t package/
-          cp lambda_function.py package/
-          cd package
-          zip -r ../lambda.zip .
+      - name: Install zip tool
+        uses: montudor/action-zip@v1
 
-      # Configure AWS using GitHub OIDC
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Create zip file for Lambda
+        run: zip -r code.zip .
+
+      - name: AWS CLI v2
+        uses: imehedi/actions-awscli-v2@latest
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ap-south-1
-
-      # Deploy updated code to Lambda
-      - name: Update Lambda Function
-        run: |
-          aws lambda update-function-code \
-            --function-name api_to_s3_lambda \
-            --zip-file fileb://lambda.zip
-
-      # Wait for deployment to finish
-      - name: Wait for Lambda Update
-        run: |
-          aws lambda wait function-updated \
-            --function-name api_to_s3_lambda
-
-      # Verify deployment
-      - name: Verify Lambda
-        run: |
-          aws lambda get-function-configuration \
-            --function-name api_to_s3_lambda \
-            --query '{FunctionName:FunctionName,LastModified:LastModified,State:State}' \
-            --output table
+          args: >-
+            lambda update-function-code
+            --function-name arn:aws:lambda:ap-south-1:093831816348:function:my_api_to_s3_lambda
+            --zip-file fileb://code.zip
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-south-1
